@@ -10,11 +10,6 @@ from bs4 import BeautifulSoup
 import pandas as pd
 from datetime import datetime
 
-'''''''''''''''''''''''''''''''''''''''''''''''''''''''''
-< naver 뉴스 전문 가져오기 >_select 사용
-- 네이버 뉴스만 가져와서 결과값 조금 작음 
-- 결과 메모장 저장 -> 엑셀로 저장 
-'''''''''''''''''''''''''''''''''''''''''''''''''''''''''
 RESULT_PATH = 'C:/Users/user/Desktop/졸업논문코드'
 now = datetime.now() #파일이름 현 시간으로 저장하기
 
