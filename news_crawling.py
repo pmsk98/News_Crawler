@@ -1,93 +1,126 @@
 # -*- coding: utf-8 -*-
 """
-Created on Sun Oct 10 22:00:39 2021
+Created on Mon Oct 11 14:54:00 2021
 
 @author: user
 """
 
-import requests
+ 
 from bs4 import BeautifulSoup
+import requests
+import re
 import pandas as pd
-from datetime import datetime
-
-RESULT_PATH = 'C:/Users/user/Desktop/졸업논문코드'
-now = datetime.now() #파일이름 현 시간으로 저장하기
-
-def get_news(n_url):
-    news_detail = []
-
-    breq = requests.get(n_url)
-    bsoup = BeautifulSoup(breq.content, 'html.parser')
-
-    title = bsoup.select('h3#articleTitle')[0].text  #대괄호는  h3#articleTitle 인 것중 첫번째 그룹만 가져오겠다.
-    news_detail.append(title)
-
-    pdate = bsoup.select('.t11')[0].get_text()[:11]
-    news_detail.append(pdate)
-
-    _text = bsoup.select('#articleBodyContents')[0].get_text().replace('\n', " ")
-    btext = _text.replace("// flash 오류를 우회하기 위한 함수 추가 function _flash_removeCallback() {}", "")
-    news_detail.append(btext.strip())
-  
-    news_detail.append(n_url)
+import os 
+from urllib.request import urlopen
+ 
+ 
+os.chdir('C:/Users/user/Desktop/졸업논문코드/삼성전자_뉴스/')
+ 
+ 
+ 
+def crawler(company_code, maxpage):
     
-    pcompany = bsoup.select('#footer address')[0].a.get_text()
-    news_detail.append(pcompany)
-
-    return news_detail
-
-def crawler(maxpage,query,s_date,e_date):
-
-    s_from = s_date.replace(".","")
-    e_to = e_date.replace(".","")
-    page = 1
-    maxpage_t =(int(maxpage)-1)*10+1   # 11= 2페이지 21=3페이지 31=4페이지  ...81=9페이지 , 91=10페이지, 101=11페이지
-    f = open("C:/Users/user/Desktop/졸업논문코드/contents_text.txt", 'w', encoding='utf-8')
+    page = 1 
     
-    while page < maxpage_t:
+    while page <= int(maxpage): 
     
-        print(page)
-    
-        url = "https://search.naver.com/search.naver?where=news&query=" + query + "&sort=0&ds=" + s_date + "&de=" + e_date + "&nso=so%3Ar%2Cp%3Afrom" + s_from + "to" + e_to + "%2Ca%3A&start=" + str(page)
+        url = 'https://finance.naver.com/item/news_news.nhn?code=' + str(company_code) + '&page=' + str(page) 
+        source_code = requests.get(url).text
+        html = BeautifulSoup(source_code, "lxml")
+     
+ 
         
-        req = requests.get(url)
-        print(url)
-        cont = req.content
-        soup = BeautifulSoup(cont, 'html.parser')
-            #print(soup)
+        # 뉴스 제목 
+        titles = html.select('.title')
+        title_result=[]
+        for title in titles: 
+            title = title.get_text() 
+            title = re.sub('\n','',title)
+            title_result.append(title)
+        
+        
+ 
+ 
+        # 뉴스 링크
+        links = html.select('.title') 
+ 
+        link_result =[]
+        for link in links: 
+            add = 'https://finance.naver.com' + link.find('a')['href']
+            link_result.append(add)
+ 
+ 
+        # 뉴스 날짜 
+        dates = html.select('.date') 
+        date_result = [date.get_text() for date in dates] 
+ 
+ 
+        # 뉴스 매체     
+        sources = html.select('.info')
+        source_result = [source.get_text() for source in sources] 
+        
+        all_news = []
+        for url in link_result:
+            data = requests.get(url, headers=headers)
+            soup = BeautifulSoup(data.text, 'html.parser')
+            content= soup.select_one('#news_read').text
+            all_news.append(content)
+ 
+ 
+        # 변수들 합쳐서 해당 디렉토리에 csv파일로 저장하기 
+ 
+        result= {"날짜" : date_result, "언론사" : source_result, "기사제목" : title_result, "링크" : link_result,"기사본문":all_news} 
+        df_result = pd.DataFrame(result)
+        
+        print("다운 받고 있습니다------")
+        
+        df_result.to_csv('page' + str(page) + '.csv', mode='w', encoding='utf-8-sig') 
+         
+            
+ 
+        page += 1 
+ 
+ 
     
-        for urls in soup.select("._sp_each_url"):
-            try :
-                #print(urls["href"])
-                if urls["href"].startswith("https://news.naver.com"):
-                    #print(urls["href"])
-                    news_detail = get_news(urls["href"])
-                        # pdate, pcompany, title, btext
-                    f.write("{}\t{}\t{}\t{}\t{}\n".format(news_detail[1], news_detail[4], news_detail[0], news_detail[2],news_detail[3]))  # new style
-            except Exception as e:
-                print(e)
-                continue
-        page += 10
+ 
+# 종목 리스트 파일 열기  
+# 회사명을 종목코드로 변환 
+        
+def convert_to_code(company, maxpage):
     
+    data = pd.read_csv('company_list.txt', dtype=str, sep='\t')   # 종목코드 추출 
+    company_name = data['회사명']
+    keys = [i for i in company_name]    #데이터프레임에서 리스트로 바꾸기 
+ 
+    company_code = data['종목코드']
+    values = [j for j in company_code]
+ 
+    dict_result = dict(zip(keys, values))  # 딕셔너리 형태로 회사이름과 종목코드 묶기 
     
-    f.close()
+    pattern = '[a-zA-Z가-힣]+' 
     
-def excel_make():
-    data = pd.read_csv(RESULT_PATH+'contents_text.txt', sep='\t',header=None, error_bad_lines=False)
-    data.columns = ['years','company','title','contents','link']
-    print(data)
+    if bool(re.match(pattern, company)) == True:         # Input에 이름으로 넣었을 때  
+        company_code = dict_result.get(str(company))
+        crawler(company_code, maxpage)
+ 
     
-    xlsx_outputFileName = '%s-%s-%s  %s시 %s분 %s초 result.xlsx' % (now.year, now.month, now.day, now.hour, now.minute, now.second)
-    #xlsx_name = 'result' + '.xlsx'
-    data.to_excel(RESULT_PATH+xlsx_outputFileName, encoding='utf-8')
-
-
+    else:                                                # Input에 종목코드로 넣었을 때       
+        company_code = str(company)      
+        crawler(company_code, maxpage)
+        
+           
+ 
+ 
 def main():
-    maxpage = input("최대 출력할 페이지수 입력하시오: ") 
-    query = input("검색어 입력: ")
-    s_date = input("시작날짜 입력(2019.01.01):")  #2019.01.01
-    e_date = input("끝날짜 입력(2019.04.28):")   #2019.04.28
-    crawler(maxpage,query,s_date,e_date) #검색된 네이버뉴스의 기사내용을 크롤링합니다. 
+    info_main = input("="*50+"\n"+"실시간 뉴스기사 다운받기."+"\n"+" 시작하시려면 Enter를 눌러주세요."+"\n"+"="*50)
     
-    excel_make() #엑셀로 만들기 
-main()
+    company = input("종목 이름이나 코드 입력: ") 
+    
+    maxpage = input("최대 뉴스 페이지 수 입력: ")  
+ 
+    convert_to_code(company, maxpage) 
+ 
+ 
+ 
+main() 
+
