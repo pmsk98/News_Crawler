@@ -1,5 +1,12 @@
 # -*- coding: utf-8 -*-
 """
+Created on Wed Dec  1 19:30:39 2021
+
+@author: student
+"""
+
+# -*- coding: utf-8 -*-
+"""
 Created on Wed Oct 13 21:55:11 2021
 
 @author: student
@@ -54,12 +61,10 @@ def naver_crawler(acode, page):
                                     })
               total_dt = total_dt.append(table)
               time.sleep(0.005)
-              print('{}페이지 완료'.format(n_))
     
     return total_dt
 
 
-data= naver_crawler('005930',59915)
+data= naver_crawler('005930',10)
 
 
-data.to_csv('C:/Users/student/Desktop/삼성전자/삼성전자_종목토론실.csv')
